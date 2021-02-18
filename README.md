@@ -87,3 +87,88 @@ Se tudo deu certo, agora você tem um arquivo de armazenamento de chave com um c
 
 ### Nota
 A senha da chave privada e a senha do keystore devem ser iguais. Se eles forem diferentes, você receberá um erro nas linhas de java.io.IOException: Não é possível recuperar a chave, conforme documentado no problema 38217 do Bugzilla (https://bz.apache.org/bugzilla/show_bug.cgi?id=38217), que contém referências adicionais para esse problema.
+
+### Edite o arquivo de configuração do Tomcat
+
+O Tomcat pode usar duas implementações diferentes de SSL:
+
+- a implementação JSSE fornecida como parte do Java runtime (desde 1.4)
+- a implementação APR, que usa o mecanismo OpenSSL por padrão.
+Os detalhes exatos da configuração dependem de qual implementação está sendo usada. Se você configurou o Conector especificando o protocolo genérico = "HTTP / 1.1", a implementação usada pelo Tomcat é escolhida automaticamente. Se a instalação usar APR - ou seja, você instalou a biblioteca nativa do Tomcat - então ela usará a implementação SSL APR, caso contrário, usará a implementação Java JSSE.
+Como os atributos de configuração para suporte SSL diferem significativamente entre as implementações APR vs. JSSE, é recomendado evitar a seleção automática da implementação. Isso é feito especificando um nome de classe no atributo de protocolo do Conector.
+
+Para definir um conector Java (JSSE), independentemente de a biblioteca APR estar carregada ou não, use um dos seguintes:
+
+```	
+<!-- Define a HTTP/1.1 Connector on port 8443, JSSE BIO implementation -->
+<Connector protocol="org.apache.coyote.http11.Http11Protocol"
+           port="8443" .../>
+
+<!-- Define a HTTP/1.1 Connector on port 8443, JSSE NIO implementation -->
+<Connector protocol="org.apache.coyote.http11.Http11NioProtocol"
+           port="8443" .../>
+```
+Como alternativa, para especificar um conector APR (a biblioteca APR deve estar disponível), use:
+
+```
+<!-- Define a HTTP/1.1 Connector on port 8443, APR implementation -->
+<Connector protocol="org.apache.coyote.http11.Http11AprProtocol"
+           port="8443" .../>
+```
+Se você estiver usando o APR, terá a opção de configurar um mecanismo alternativo para OpenSSL.
+
+```
+<Listener className="org.apache.catalina.core.AprLifecycleListener"
+          SSLEngine="someengine" SSLRandomSeed="somedevice" />
+```
+o valor padrão é:
+
+```
+<Listener className="org.apache.catalina.core.AprLifecycleListener"
+          SSLEngine="on" SSLRandomSeed="builtin" />
+```
+
+Portanto, para usar SSL no APR, certifique-se de que o atributo SSLEngine esteja definido como algo diferente de desligado. O valor padrão é on e se você especificar outro valor, ele deve ser um nome de mecanismo válido.
+SSLRandomSeed permite especificar uma fonte de entropia. O sistema produtivo precisa de uma fonte confiável de entropia, mas a entropia pode precisar de muito tempo para ser coletada, portanto, os sistemas de teste não podem usar fontes de entropia bloqueadoras como "/ dev / urandom", o que permitirá um início mais rápido do Tomcat.
+
+A etapa final é configurar o Conector no arquivo $ CATALINA_BASE / conf / server.xml, onde $ CATALINA_BASE representa o diretório base para a instância do Tomcat 6. Um exemplo de elemento <Connector> para um conector SSL está incluído no arquivo server.xml padrão instalado com Tomcat. Para JSSE, deve ser parecido com isto:
+  
+```
+<!-- Define a SSL Coyote HTTP/1.1 Connector on port 8443 -->
+<Connector
+           protocol="org.apache.coyote.http11.Http11Protocol"
+           port="8443" maxThreads="200"
+           scheme="https" secure="true" SSLEnabled="true"
+           keystoreFile="${user.home}/.keystore" keystorePass="changeit"
+           clientAuth="false" sslProtocol="TLS"/>
+```
+
+O conector APR usa atributos diferentes para muitas configurações SSL, principalmente chaves e certificados. Um exemplo de configuração APR é:
+
+```
+	
+	
+<!-- Define a SSL Coyote HTTP/1.1 Connector on port 8443 -->
+<Connector
+           protocol="org.apache.coyote.http11.Http11AprProtocol"
+           port="8443" maxThreads="200"
+           scheme="https" secure="true" SSLEnabled="true"
+           SSLCertificateFile="/usr/local/ssl/server.crt" 
+           SSLCertificateKeyFile="/usr/local/ssl/server.pem"
+           SSLVerifyClient="optional" SSLProtocol="TLSv1+TLSv1.1+TLSv1.2"/>
+```
+As opções de configuração e as informações sobre quais atributos são obrigatórios para os conectores baseados em JSSE (BIO e NIO) estão documentadas na seção Suporte SSL da referência de configuração do conector HTTP. As opções de configuração e as informações sobre quais atributos são obrigatórios para o conector APR estão documentadas na seção HTTPS do APR How-To.
+
+O atributo port é o número da porta TCP / IP na qual o Tomcat escutará conexões seguras. Você pode alterá-lo para qualquer número de porta que desejar (como a porta padrão para comunicações https, que é 443). No entanto, uma configuração especial (fora do escopo deste documento) é necessária para executar o Tomcat em números de porta inferiores a 1024 em muitos sistemas operacionais.
+
+```
+Se você alterar o número da porta aqui, também deverá alterar o valor especificado para o atributo redirectPort no conector não SSL. Isso permite que o Tomcat redirecione automaticamente os usuários que tentam acessar uma página com uma restrição de segurança especificando que SSL é necessário, conforme exigido pela Especificação de Servlet.
+```
+
+Depois de concluir essas mudanças de configuração, você deve reiniciar o Tomcat como normalmente faz e deve estar no negócio. Você deve conseguir acessar qualquer aplicativo da web compatível com o Tomcat via SSL. Por exemplo, tente:
+
+```
+https://localhost:8443/
+```
+
+e você deverá ver a página inicial normal do Tomcat (a menos que tenha modificado o aplicativo da web ROOT). Se isso não funcionar, a seção a seguir contém algumas dicas de solução de problemas.
