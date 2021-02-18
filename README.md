@@ -77,4 +77,10 @@ Este comando criará um novo arquivo, no diretório inicial do usuário sob o qu
 $JAVA_HOME/bin/keytool -genkey -alias tomcat -keyalg RSA
   -keystore /path/to/my/keystore
 ```
-  
+Depois de executar esse comando, primeiro será solicitada a senha do keystore. A senha padrão usada pelo Tomcat é "changeit" (todas em minúsculas), embora você possa especificar uma senha personalizada se desejar. Você também precisará especificar a senha personalizada no arquivo de configuração server.xml, conforme descrito posteriormente.
+
+Em seguida, serão solicitadas informações gerais sobre este certificado, como empresa, nome de contato e assim por diante. Essas informações serão exibidas para usuários que tentarem acessar uma página segura em seu aplicativo, portanto, certifique-se de que as informações fornecidas aqui correspondam ao que eles esperam.
+
+Por fim, será solicitada a senha da chave, que é a senha especificamente para este certificado (ao contrário de quaisquer outros certificados armazenados no mesmo arquivo de armazenamento de chaves). Você DEVE usar a mesma senha aqui que foi usada para a própria senha do keystore. Esta é uma restrição da implementação do Tomcat. (Atualmente, o prompt do keytool dirá que pressionar a tecla ENTER faz isso para você automaticamente.)
+
+Se tudo deu certo, agora você tem um arquivo de armazenamento de chave com um certificado que pode ser usado por seu servidor.
