@@ -172,3 +172,68 @@ https://localhost:8443/
 ```
 
 e você deverá ver a página inicial normal do Tomcat (a menos que tenha modificado o aplicativo da web ROOT). Se isso não funcionar, a seção a seguir contém algumas dicas de solução de problemas.
+
+### Instalando um certificado de uma autoridade de certificação
+Para obter e instalar um certificado de uma autoridade de certificação (como verisign.com, thawte.com ou trustcenter.de), leia a seção anterior e siga estas instruções:
+
+### Criar uma Solicitação de Assinatura de Certificado (CSR) local
+Para obter um certificado da autoridade de certificação de sua escolha, você deve criar uma chamada Solicitação de assinatura de certificado (CSR). Esse CSR será usado pela autoridade de certificação para criar um certificado que identificará o seu site como "seguro". Para criar um CSR, siga estas etapas:
+
+- Crie um certificado autoassinado local (conforme descrito na seção anterior):
+
+```
+keytool -genkey -alias tomcat -keyalg RSA
+    -keystore <your_keystore_filename>
+```
+
+Observação: em alguns casos, você terá que inserir o domínio do seu site (ou seja, www.myside.org) no campo "nome e sobrenome" para criar um certificado funcional.
+- O CSR é então criado com:
+
+```
+keytool -certreq -keyalg RSA -alias tomcat -file certreq.csr
+    -keystore <your_keystore_filename>
+```
+
+Agora você tem um arquivo chamado certreq.csr que pode enviar para a Autoridade de Certificação (veja a documentação do site da Autoridade de Certificação para saber como fazer isso). Em troca, você recebe um certificado.
+
+### Importando o Certificado
+Agora que você tem seu certificado, pode importá-lo para o armazenamento de chaves local. Em primeiro lugar, você deve importar um certificado de cadeia ou certificado raiz para o seu armazenamento de chaves. Depois disso, você pode prosseguir com a importação do seu certificado.
+
+- Baixe um certificado de cadeia da autoridade de certificação da qual você obteve o certificado.
+Para certificados comerciais da Verisign.com, vá para: http://www.verisign.com/support/install/intermediate.html
+Para obter os certificados de avaliação da Verisign.com, acesse: http://www.verisign.com/support/verisign-intermediate-ca/Trial_Secure_Server_Root/index.html
+Para Trustcenter.de vá para: http://www.trustcenter.de/certservices/cacerts/en/en.htm#server
+Para Thawte.com vá para: http://www.thawte.com/certs/trustmap.html
+- Importe o certificado da cadeia em seu armazenamento de chaves
+
+```
+keytool -import -alias root -keystore <your_keystore_filename>
+    -trustcacerts -file <filename_of_the_chain_certificate>
+```
+
+E finalmente importe seu novo certificado
+
+```
+keytool -import -alias tomcat -keystore <your_keystore_filename>
+    -file <your_certificate_filename>
+```
+
+### Solução de problemas
+Aqui está uma lista de problemas comuns que você pode encontrar ao configurar comunicações SSL e o que fazer a respeito.
+
+- Quando o Tomcat é inicializado, recebo uma exceção como "java.io.FileNotFoundException: {algum-diretório} / {algum-arquivo} não encontrado".
+Uma explicação provável é que o Tomcat não consegue encontrar o arquivo de armazenamento de chave onde está procurando. Por padrão, o Tomcat espera que o arquivo keystore seja denominado .keystore no diretório inicial do usuário sob o qual o Tomcat está sendo executado (que pode ou não ser igual ao seu :-). Se o arquivo keystore estiver em qualquer outro lugar, você precisará adicionar um atributo keystoreFile ao elemento <Connector> no arquivo de configuração do Tomcat.
+
+- Quando o Tomcat é inicializado, recebo uma exceção como "java.io.FileNotFoundException: Keystore foi adulterado ou a senha estava incorreta".
+Supondo que alguém não tenha realmente adulterado seu arquivo de armazenamento de chave, a causa mais provável é que o Tomcat está usando uma senha diferente da que você usou quando criou o arquivo de armazenamento de chave. Para corrigir isso, você pode voltar e recriar o arquivo keystore ou pode adicionar ou atualizar o atributo keystorePass no elemento <Connector> no arquivo de configuração Tomcat. LEMBRETE - As senhas diferenciam maiúsculas de minúsculas!
+	
+- Quando o Tomcat é inicializado, recebo uma exceção como "java.net.SocketException: erro de handshake SSL javax.net.ssl.SSLException: Nenhum certificado ou chave disponível corresponde aos conjuntos de criptografia SSL ativados."
+
+Uma explicação provável é que o Tomcat não pode localizar o alias da chave do servidor no armazenamento de chaves especificado. Verifique se o keystoreFile e keyAlias corretos estão especificados no elemento <Connector> no arquivo de configuração do Tomcat. LEMBRETE - os valores keyAlias podem fazer distinção entre maiúsculas e minúsculas!
+
+Se você ainda estiver tendo problemas, uma boa fonte de informações é a lista de discussão TOMCAT-USER. Você pode encontrar dicas para arquivos de mensagens anteriores nesta lista, bem como informações de inscrição e cancelamento de inscrição, em http://tomcat.apache.org/lists.html
+
+Dicas e bits diversos
+Para acessar o ID da sessão SSL da solicitação, use:
+String sslID = (String) request.getAttribute ("javax.servlet.request.ssl_session");
+Para uma discussão adicional sobre esta área, consulte https://bz.apache.org/bugzilla/show_bug.cgi?id=22679
