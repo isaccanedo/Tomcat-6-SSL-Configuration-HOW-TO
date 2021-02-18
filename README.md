@@ -84,3 +84,6 @@ Em seguida, serão solicitadas informações gerais sobre este certificado, como
 Por fim, será solicitada a senha da chave, que é a senha especificamente para este certificado (ao contrário de quaisquer outros certificados armazenados no mesmo arquivo de armazenamento de chaves). Você DEVE usar a mesma senha aqui que foi usada para a própria senha do keystore. Esta é uma restrição da implementação do Tomcat. (Atualmente, o prompt do keytool dirá que pressionar a tecla ENTER faz isso para você automaticamente.)
 
 Se tudo deu certo, agora você tem um arquivo de armazenamento de chave com um certificado que pode ser usado por seu servidor.
+
+### Nota
+A senha da chave privada e a senha do keystore devem ser iguais. Se eles forem diferentes, você receberá um erro nas linhas de java.io.IOException: Não é possível recuperar a chave, conforme documentado no problema 38217 do Bugzilla (https://bz.apache.org/bugzilla/show_bug.cgi?id=38217), que contém referências adicionais para esse problema.
