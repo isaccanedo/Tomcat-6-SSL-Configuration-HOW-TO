@@ -6,9 +6,13 @@ A descrição abaixo usa o nome da variável $ CATALINA_BASE para se referir ao 
 Para instalar e configurar o suporte SSL no Tomcat 6, você precisa seguir estas etapas simples. Para obter mais informações, leia o restante deste COMO FAZER.
 
 Crie um arquivo de armazenamento de chaves para armazenar a chave privada do servidor e o certificado autoassinado executando o seguinte comando:
-### Windows
+### Sistema Operacional Windows
 ```
-"% JAVA_HOME% \ bin \ keytool" -genkey -alias tomcat -keyalg RSA
+"%JAVA_HOME%\bin\keytool" -genkey -alias tomcat -keyalg RSA
+```
+### Sistema Operacional Unix
+```
+"$JAVA_HOME/bin/keytool -genkey -alias tomcat -keyalg RSA
 ```
 e especifique um valor de senha de "changeit".
 
