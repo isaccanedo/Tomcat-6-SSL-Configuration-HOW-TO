@@ -32,3 +32,49 @@ Para implementar SSL, um servidor web deve ter um certificado associado para cad
 Este certificado é assinado criptograficamente por seu proprietário e, portanto, é extremamente difícil para outra pessoa falsificá-lo. Para que o certificado funcione nos navegadores dos visitantes sem avisos, ele precisa ser assinado por um terceiro confiável. Eles são chamados de Autoridades de Certificação (CAs). Para obter um certificado assinado, você precisa escolher uma CA e seguir as instruções fornecidas por sua CA para obter seu certificado. Uma variedade de CAs está disponível, incluindo algumas que oferecem certificados gratuitamente.
 
 Java fornece uma ferramenta de linha de comando relativamente simples, chamada keytool, que pode facilmente criar um certificado "autoassinado". Os certificados autoassinados são simplesmente certificados gerados pelo usuário que não foram assinados por uma CA bem conhecida e, portanto, não têm garantia de autenticidade alguma. Embora os certificados autoassinados possam ser úteis para alguns cenários de teste, eles não são adequados para qualquer forma de uso em produção.
+
+### Dicas gerais para executar SSL
+Ao proteger um site com SSL, é importante certificar-se de que todos os ativos que o site usa são servidos por SSL, para que um invasor não possa contornar a segurança injetando conteúdo malicioso em um arquivo javascript ou similar. Para aumentar ainda mais a segurança do seu site, você deve avaliar o uso do cabeçalho HSTS. Ele permite que você comunique ao navegador que seu site deve sempre ser acessado por https.
+
+O uso de hosts virtuais baseados em nome em uma conexão segura requer configuração cuidadosa dos nomes especificados em um único certificado ou Tomcat 8.5 em diante, onde o suporte para indicação de nome de servidor (SNI) está disponível. O SNI permite que vários certificados com nomes diferentes sejam associados a um único conector TLS.
+
+### Configuração
+## Prepare o armazenamento de chaves de certificado
+O Tomcat atualmente opera apenas em keystores de formato JKS, PKCS11 ou PKCS12. O formato JKS é o formato "Java KeyStore" padrão do Java e é o formato criado pelo utilitário de linha de comando keytool. Essa ferramenta está incluída no JDK. O formato PKCS12 é um padrão da Internet e pode ser manipulado via (entre outras coisas) OpenSSL e Key-Manager da Microsoft.
+
+Cada entrada em um keystore é identificada por uma string de alias. Enquanto muitas implementações de keystore tratam aliases de uma maneira que não diferencia maiúsculas de minúsculas, implementações que diferenciam maiúsculas de minúsculas estão disponíveis. A especificação PKCS11, por exemplo, requer que os aliases façam distinção entre maiúsculas e minúsculas. Para evitar problemas relacionados à diferenciação de maiúsculas e minúsculas de aliases, não é recomendado usar aliases que diferem apenas em maiúsculas e minúsculas.
+
+Para importar um certificado existente para um keystore JKS, leia a documentação (em seu pacote de documentação JDK) sobre o keytool. Observe que o OpenSSL geralmente adiciona comentários legíveis antes da chave, mas o keytool não oferece suporte para isso. Portanto, se o seu certificado tiver comentários antes dos dados da chave, remova-os antes de importar o certificado com o keytool.
+
+Para importar um certificado existente assinado por sua própria CA em um keystore PKCS12 usando OpenSSL, você executaria um comando como:
+```
+openssl pkcs12 -export -in mycert.crt -inkey mykey.key
+                        -out mycert.p12 -name tomcat -CAfile myCA.crt
+                        -caname root -chain
+```
+
+Para criar um novo keystore JKS do zero, contendo um único certificado autoassinado, execute o seguinte em uma linha de comando de terminal:
+
+### Windows		
+```
+"%JAVA_HOME%\bin\keytool" -genkey -alias tomcat -keyalg RSA
+```
+### Unix		
+```	
+$JAVA_HOME/bin/keytool -genkey -alias tomcat -keyalg RSA
+```
+(O algoritmo RSA deve ser preferido como um algoritmo seguro, e isso também garante compatibilidade geral com outros servidores e componentes.)
+
+Este comando criará um novo arquivo, no diretório inicial do usuário sob o qual você o executa, denominado ".keystore". Para especificar um local ou nome de arquivo diferente, inclua o parâmetro -keystore, seguido do nome do caminho completo para seu arquivo de armazenamento de chave, ao comando keytool mostrado acima. Você também precisará refletir esse novo local no arquivo de configuração server.xml, conforme descrito posteriormente. Por exemplo:
+
+### Windows
+```
+"%JAVA_HOME%\bin\keytool" -genkey -alias tomcat -keyalg RSA
+  -keystore \path\to\my\keystore
+  ```
+### Unix
+```
+$JAVA_HOME/bin/keytool -genkey -alias tomcat -keyalg RSA
+  -keystore /path/to/my/keystore
+```
+  
